@@ -1,6 +1,8 @@
 #include "uthread.h"
-#include "kernel/proc.c"
-#include "umalloc.c"
+#include "kernel/stat.h"
+#include "user/user.h"
+//#include "kernel/proc.c"
+//#include "umalloc.c"
 
 struct uthread proc_uthreads[MAX_UTHREADS]; 
 struct uthread* curr_uthread;
@@ -82,7 +84,7 @@ void uthread_yield(){
     curr_uthread->state = RUNNABLE; //the current thread isn't running anymore. In the instructions given(in the forum) the curr_uthread may run again if it has the highest priority
     struct uthread *hp_t = get_hp_thread(); //stores the highest priority(hp) uthread found.
     if (hp_t != 0){
-        hp_t->state == RUNNING;
+        hp_t->state = RUNNING;
         uswtch(&curr_uthread->context, &hp_t->context);
     }
 }
