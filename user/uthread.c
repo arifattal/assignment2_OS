@@ -136,18 +136,17 @@ Hint: this functionality can be implemented using a global variable or static va
 */
 int uthread_start_all(){
     static int first = 1;
-    struct uthread *t;
+    struct uthread *hp_t;
     struct context empty_context;
     if(first){
-        for(t = proc_uthreads; t< &proc_uthreads[MAX_UTHREADS]; t++){
-            if(t->state == RUNNABLE){
-                first = 0;
-                uswtch(&empty_context, &t->context);
-                return 0;
-            }
-            }
+        hp_t = get_hp_thread();
+        if(hp_t != 0){
+            first = 0;
+            uswtch(&empty_context, &hp_t->context);
+            return 0;
+        }    
     }
-        return -1; 
+    return -1; 
     }
 
 /*
