@@ -111,6 +111,10 @@ void            forkret(void); //added for use in kthread.c
 // kthread.c
 void                kthreadinit(struct proc *);
 struct kthread*     mykthread();
+int                 allocKTpid(struct proc *p);
+struct kthread*     allocKthread(struct proc *p);
+int                 freeKT(struct kthread *kt);
+struct trapframe*   get_kthread_trapframe(struct proc *p, struct kthread *kt);
 
 
 // TODO: delte this after you are done with task 2.2

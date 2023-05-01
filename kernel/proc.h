@@ -40,7 +40,7 @@ struct proc {
 
   //added
   struct spinlock t_pid_lock; //a lock for allocating thread IDs (used in a similar way to allocpid in proc.c)
-  int tpidCounter = 1;
+  int tpidCounter;
 
   // wait_lock must be held when using this:
   struct proc *parent;         // Parent process

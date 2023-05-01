@@ -50,7 +50,8 @@ Given a proc, it allocates a unique kernel thread ID using the counter and lock 
 int allocKTpid(struct proc *p){
   int kt_pid;
   acquire(&p->t_pid_lock);
-  kt_pid = p->tpidCounter + 1;
+  kt_pid = p->tpidCounter;
+  p->tpidCounter++;
   release(&p->t_pid_lock);
   return kt_pid;
 }
@@ -65,10 +66,10 @@ Finally, it returns a pointer to the newly allocated kthread with its lock acqui
 Note: the pointer to the trapframe should be 
 fetched by using the get_kthread_trapframe(...) function from kthread.c.
 */
-int allocKthread(struct proc *p){
-  acquire(&p->lock);
+struct kthread* allocKthread(struct proc *p){
   int found = 0;
-  for (struct kthread *kt = p->kthread; kt < &p->kthread[NKT]; kt++){
+  struct kthread* kt;
+  for (kt = p->kthread; kt < &p->kthread[NKT]; kt++){
     acquire(&kt->lock);
     if(kt->kstate == UNUSED){
       kt->tid = allocKTpid(p); //allocates a new kernel thread ID
@@ -84,11 +85,10 @@ int allocKthread(struct proc *p){
       release(&kt->lock);
     }
   }
-  release(&p->lock);
   if(found == 0){ //an unused kthread hasn't been found
-    return -1;
+    return 0;
   }
-  return 0;
+  return kt;
 }
 /*
 Given a kthread, it sets its fields to null / zero, and the state to unused.
@@ -104,8 +104,9 @@ int freeKT(struct kthread *kt){
   kt->parnetProc = 0;
   //these lines were copied from freeproc, we aren't sure if this is correct
   //also we didn't free the kstack
-  if(p->base_trapframes)
+  if(kt->trapframe){
     kfree((void*)kt->trapframe);
+  }
   kt->trapframe = 0;
 }
 
@@ -114,7 +115,7 @@ struct trapframe *get_kthread_trapframe(struct proc *p, struct kthread *kt)
   return p->base_trapframes + ((int)(kt - p->kthread));
 }
 
-// TODO: delte this after you are done with task 2.2
+// TODO: delete this after you are done with task 2.2
 void allocproc_help_function(struct proc *p) {
   p->kthread->trapframe = get_kthread_trapframe(p, p->kthread);
 

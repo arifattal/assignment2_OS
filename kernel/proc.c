@@ -109,6 +109,21 @@ allocpid()
 // If found, initialize state required to run in the kernel,
 // and return with p->lock held.
 // If there are no free procs, or a memory allocation fails, return 0.
+
+/*
+Once an unused proc is found, initialize the counter used for kernel thread ID allocation to 1,
+then allocate the first kernel thread using the allocation function you wrote 
+(without using the returned value from this function). 
+Remember that upon returning from this function, 
+the proc lock and the kthread lock are still acquired (as they should be).
+
+(Note: right after applying the patch you can see a new helper function 
+called at the end of allocproc(...). The function is named allocproc_help_function(...). 
+The only purpose of the helper function 
+is to allow the OS to compile and run right after applying the patch. 
+During or after making your changes, you should remove the helper function and its usage. 
+It should be removed from proc.c, kthread.c and defs.h.)
+*/
 static struct proc*
 allocproc(void)
 {
@@ -127,7 +142,7 @@ allocproc(void)
 found:
   p->pid = allocpid();
   p->state = USED;
-
+  p->tpidCounter = 1;
   // Allocate a trapframe page.
   if((p->base_trapframes = (struct trapframe *)kalloc()) == 0){
     freeproc(p);
@@ -150,6 +165,12 @@ found:
   p->context.ra = (uint64)forkret;
   p->context.sp = p->kstack + PGSIZE;
 
+  //alloc kthread for this proc, if successful after returning from this func both the proc and it's kthread's lock are acquired
+  if(allocKthread(p) == 0){ //added
+    freeproc(p);
+    release(&p->lock);
+    return 0;
+  } 
 
   // TODO: delte this after you are done with task 2.2
   allocproc_help_function(p);
@@ -159,9 +180,15 @@ found:
 // free a proc structure and the data hanging from it,
 // including user pages.
 // p->lock must be held.
+
+/*
+Free all the kernel threads inside the thread table using the function you wrote, 
+free the base_trapframes field and set it to zero.
+*/
 static void
 freeproc(struct proc *p)
 {
+  struct kthread* kt;
   if(p->base_trapframes)
     kfree((void*)p->base_trapframes);
   p->base_trapframes = 0;
@@ -175,6 +202,12 @@ freeproc(struct proc *p)
   p->chan = 0;
   p->killed = 0;
   p->xstate = 0;
+  
+  for (kt = p->kthread; kt < &p->kthread[NKT]; kt++){ //Free all the kernel threads inside the thread table
+    acquire(&kt->lock);
+    freeKT(kt);
+    release(&kt->lock);
+  }
   p->state = UNUSED;
 }
 
@@ -236,11 +269,15 @@ uchar initcode[] = {
 };
 
 // Set up first user process.
+/*
+Set the state of the first kthread state to runnable. 
+Also, release the first kthread lock that was acquired in allocproc(...) (in addition to the proc lock).
+*/
 void
 userinit(void)
 {
   struct proc *p;
-
+  struct kthread *kt;
   p = allocproc();
   initproc = p;
   
@@ -255,9 +292,10 @@ userinit(void)
 
   safestrcpy(p->name, "initcode", sizeof(p->name));
   p->cwd = namei("/");
-
+  kt = &p->kthread[0];//the first kthread for this proc was allocated inside allocproc() which was called above
+  kt->kstate = RUNNABLE;
   p->state = RUNNABLE;
-
+  release(&kt->lock);
   release(&p->lock);
 }
 
@@ -283,6 +321,11 @@ growproc(int n)
 
 // Create a new process, copying the parent.
 // Sets up child kernel stack to return as if from fork() system call.
+/*
+Clone the calling thread into the main kernel thread of the newly allocated proc, 
+similarly to how it was done in the original fork(...) (some of the work has already been done). 
+Make sure you hold and release any necessary locks, and in the correct order! (Keep in mind this Note).
+*/
 int
 fork(void)
 {
@@ -295,9 +338,10 @@ fork(void)
   if((np = allocproc()) == 0){
     return -1;
   }
-
+  struct kthread *np_kt = &np->kthread[0];
   // Copy user memory from parent to child.
   if(uvmcopy(p->pagetable, np->pagetable, p->sz) < 0){
+    release(&np_kt->lock); //we're not sure about this. look at freeproc to see why we did this
     freeproc(np);
     release(&np->lock);
     return -1;
@@ -319,6 +363,10 @@ fork(void)
   safestrcpy(np->name, p->name, sizeof(p->name));
 
   pid = np->pid;
+
+  np_kt->kstate = kt->kstate;
+  np_kt->killed = kt->killed;
+  np_kt->xstate = kt->xstate;
 
   release(&np->lock);
 
