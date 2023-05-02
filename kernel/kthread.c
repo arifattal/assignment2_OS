@@ -110,6 +110,19 @@ int freeKT(struct kthread *kt){
   kt->trapframe = 0;
 }
 
+//an auxiliary function called by exit
+void exitThread(struct kthread *kt, int status){ //we added this
+  kt->kstate = ZOMBIE;
+  kt->xstate = status; 
+}
+
+//an auxiliary function called by kill
+//see kill in proc.c to see why we did this
+void killThread(struct kthread *kt){
+  kt->killed = 1; //might not need this
+  kt->kstate = RUNNABLE;
+}
+
 struct trapframe *get_kthread_trapframe(struct proc *p, struct kthread *kt)
 {
   return p->base_trapframes + ((int)(kt - p->kthread));

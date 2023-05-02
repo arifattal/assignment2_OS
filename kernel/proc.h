@@ -22,7 +22,8 @@ struct context {
 
 
 
-enum procstate { UNUSED, USED, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
+//enum procstate { UNUSED, USED, SLEEPING, RUNNABLE, RUNNING, ZOMBIE }; //original enum
+enum procstate { UNUSED, USED, ZOMBIE };
 
 // Per-process state
 struct proc {
