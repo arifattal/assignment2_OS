@@ -129,8 +129,8 @@ struct trapframe *get_kthread_trapframe(struct proc *p, struct kthread *kt)
 }
 
 // TODO: delete this after you are done with task 2.2
-void allocproc_help_function(struct proc *p) {
-  p->kthread->trapframe = get_kthread_trapframe(p, p->kthread);
+// void allocproc_help_function(struct proc *p) {
+//   p->kthread->trapframe = get_kthread_trapframe(p, p->kthread);
 
-  p->context.sp = p->kthread->kstack + PGSIZE;
-}
+//   p->context.sp = p->kthread->kstack + PGSIZE;
+// }

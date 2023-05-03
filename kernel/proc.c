@@ -174,7 +174,7 @@ found:
   } 
 
   // TODO: delte this after you are done with task 2.2
-  allocproc_help_function(p);
+  //allocproc_help_function(p);
   return p;
 }
 

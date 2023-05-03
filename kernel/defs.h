@@ -8,6 +8,7 @@ struct spinlock;
 struct sleeplock;
 struct stat;
 struct superblock;
+struct kthread;
 
 // bio.c
 void            binit(void);
@@ -119,7 +120,7 @@ void                exitThread(struct kthread *kt, int status);
 void                killThread(struct kthread *kt);
 
 // TODO: delte this after you are done with task 2.2
-void allocproc_help_function(struct proc *p);
+//void allocproc_help_function(struct proc *p);
 
 // swtch.S
 void            swtch(struct context*, struct context*);
