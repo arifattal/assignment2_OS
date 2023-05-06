@@ -1,3 +1,24 @@
+#include "defs.h"
+
+//Saved registers for kernel context switches.
+struct context {
+  uint64 ra;
+  uint64 sp;
+
+  // callee-saved
+  uint64 s0;
+  uint64 s1;
+  uint64 s2;
+  uint64 s3;
+  uint64 s4;
+  uint64 s5;
+  uint64 s6;
+  uint64 s7;
+  uint64 s8;
+  uint64 s9;
+  uint64 s10;
+  uint64 s11;
+};
 
 // per-process data for the trap handling code in trampoline.S.
 // sits in a page by itself just under the trampoline page in the
@@ -60,27 +81,7 @@ struct cpu {
 
 extern struct cpu cpus[NCPU];
 
-// Saved registers for kernel context switches.
-struct context {
-  uint64 ra;
-  uint64 sp;
-
-  // callee-saved
-  uint64 s0;
-  uint64 s1;
-  uint64 s2;
-  uint64 s3;
-  uint64 s4;
-  uint64 s5;
-  uint64 s6;
-  uint64 s7;
-  uint64 s8;
-  uint64 s9;
-  uint64 s10;
-  uint64 s11;
-};
-
-enum kthreadState { UNUSED, USED, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
+enum kthreadState { K_UNUSED, K_USED, K_SLEEPING, K_RUNNABLE, K_RUNNING, K_ZOMBIE };
 
 struct kthread
 {

@@ -147,7 +147,7 @@ int uthread_start_all(){
         }    
     }
     return -1; 
-    }
+}
 
 /*
 Returns a pointer to the UTCB associated with the calling thread.

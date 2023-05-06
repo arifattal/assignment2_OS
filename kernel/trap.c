@@ -154,7 +154,7 @@ kerneltrap()
   // give up the CPU if this is a timer interrupt.
   if(which_dev == 2 && myproc() != 0){
     struct kthread *kt = &myproc()->kthread[0];
-    if(kt->kstate == RUNNING){
+    if(kt->kstate == K_RUNNING){
       yield();
     }
   }

@@ -22,7 +22,7 @@ void kthreadinit(struct proc *p)
   for (struct kthread *kt = p->kthread; kt < &p->kthread[NKT]; kt++)
   {
     initlock(&kt->lock, "t_lock");
-    kt->kstate = UNUSED;
+    kt->kstate = K_UNUSED;
     kt->parnetProc = p;
     // WARNING: Don't change this line!
     // get the pointer to the kernel stack of the kthread
@@ -45,7 +45,8 @@ struct kthread *mykthread()
 }
 
 /*
-Given a proc, it allocates a unique kernel thread ID using the counter and lock inside the proc.
+Given a proc, it allocates a unique kernel thread ID using the counter 
+and lock inside the proc.
 */
 int allocKTpid(struct proc *p){
   int kt_pid;
@@ -68,12 +69,12 @@ fetched by using the get_kthread_trapframe(...) function from kthread.c.
 */
 struct kthread* allocKthread(struct proc *p){
   int found = 0;
-  struct kthread* kt;
+  struct kthread* kt = &p->kthread[0];
   for (kt = p->kthread; kt < &p->kthread[NKT]; kt++){
     acquire(&kt->lock);
-    if(kt->kstate == UNUSED){
+    if(kt->kstate == K_UNUSED){
       kt->tid = allocKTpid(p); //allocates a new kernel thread ID
-      kt->kstate = USED;
+      kt->kstate = K_USED;
       kt->trapframe = get_kthread_trapframe(p, kt); //assigns it its trapframe
       memset(&kt->context, 0, sizeof(kt->context)); //initializes the context to zeroes
       kt->context.ra = (uint64)forkret; //changes the ‘ra’ register in context to forkret address
@@ -93,26 +94,25 @@ struct kthread* allocKthread(struct proc *p){
 /*
 Given a kthread, it sets its fields to null / zero, and the state to unused.
 //p->lock must be held
-//kt->lock must be held
+//kt->lock must be held <- we're not sure where these instructions came from, maybe from the forum?
 */
-int freeKT(struct kthread *kt){
-  kt->kstate = UNUSED;
+void freeKT(struct kthread *kt){
+  kt->kstate = K_UNUSED;
   kt->chan = 0;
   kt->killed = 0;
   kt->xstate = 0;
   kt->tid = 0;
-  kt->parnetProc = 0;
-  //these lines were copied from freeproc, we aren't sure if this is correct
-  //also we didn't free the kstack
-  if(kt->trapframe){
-    kfree((void*)kt->trapframe);
-  }
+  //kt->parnetProc = 0;
+  //these lines were copied from freeproc, we removed them since they caused errors
+  // if(kt->trapframe){
+  //   kfree((void*)kt->trapframe);
+  // }
   kt->trapframe = 0;
 }
 
 //an auxiliary function called by exit
 void exitThread(struct kthread *kt, int status){ //we added this
-  kt->kstate = ZOMBIE;
+  kt->kstate = K_ZOMBIE;
   kt->xstate = status; 
 }
 
@@ -120,7 +120,7 @@ void exitThread(struct kthread *kt, int status){ //we added this
 //see kill in proc.c to see why we did this
 void killThread(struct kthread *kt){
   kt->killed = 1; //might not need this
-  kt->kstate = RUNNABLE;
+  kt->kstate = K_RUNNABLE;
 }
 
 struct trapframe *get_kthread_trapframe(struct proc *p, struct kthread *kt)

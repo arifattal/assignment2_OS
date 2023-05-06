@@ -9,6 +9,7 @@ struct sleeplock;
 struct stat;
 struct superblock;
 struct kthread;
+//struct kcontext;
 
 // bio.c
 void            binit(void);
@@ -114,7 +115,7 @@ void                kthreadinit(struct proc *);
 struct kthread*     mykthread();
 int                 allocKTpid(struct proc *p);
 struct kthread*     allocKthread(struct proc *p);
-int                 freeKT(struct kthread *kt);
+void                freeKT(struct kthread *kt);
 struct trapframe*   get_kthread_trapframe(struct proc *p, struct kthread *kt);
 void                exitThread(struct kthread *kt, int status);
 void                killThread(struct kthread *kt);
