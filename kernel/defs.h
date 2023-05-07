@@ -119,6 +119,7 @@ void                freeKT(struct kthread *kt);
 struct trapframe*   get_kthread_trapframe(struct proc *p, struct kthread *kt);
 void                exitThread(struct kthread *kt, int status);
 void                killThread(struct kthread *kt);
+int                 kt_killed(struct kthread *kt);
 
 // TODO: delte this after you are done with task 2.2
 //void allocproc_help_function(struct proc *p);

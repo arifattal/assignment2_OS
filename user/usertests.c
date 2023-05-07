@@ -793,10 +793,10 @@ killstatus(char *s)
   int xst;
   
   for(int i = 0; i < 100; i++){
-    printf("entered %d loop\n", i);
+    //printf("entered %d loop\n", i);
     //sleep(10);
     int pid1 = fork();
-    printf("pid is: %d\n", pid1);
+    //printf("pid is: %d\n", pid1);
     //sleep(10);
     if(pid1 < 0){
       printf("%s: fork failed\n", s);

@@ -97,23 +97,23 @@ Given a kthread, it sets its fields to null / zero, and the state to unused.
 //kt->lock must be held <- we're not sure where these instructions came from, maybe from the forum?
 */
 void freeKT(struct kthread *kt){
-  kt->kstate = K_UNUSED;
   kt->chan = 0;
   kt->killed = 0;
   kt->xstate = 0;
   kt->tid = 0;
+  kt->kstate = K_UNUSED;
   //these lines were copied from freeproc, we removed them since they caused errors
   //kt->parnetProc = 0;
   // if(kt->trapframe){
   //   kfree((void*)kt->trapframe);
   // }
-  kt->trapframe = 0;
+  //kt->trapframe = 0;
 }
 
 //an auxiliary function called by exit
 void exitThread(struct kthread *kt, int status){ //we added this
-  kt->kstate = K_ZOMBIE;
   kt->xstate = status; 
+  kt->kstate = K_ZOMBIE;
 }
 
 //an auxiliary function called by kill
@@ -126,6 +126,17 @@ void killThread(struct kthread *kt){
 struct trapframe *get_kthread_trapframe(struct proc *p, struct kthread *kt)
 {
   return p->base_trapframes + ((int)(kt - p->kthread));
+}
+
+int
+kt_killed(struct kthread *kt)
+{
+  int k;
+  
+  acquire(&kt->lock);
+  k = kt->killed;
+  release(&kt->lock);
+  return k;
 }
 
 // TODO: delete this after you are done with task 2.2

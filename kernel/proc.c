@@ -187,6 +187,11 @@ static void
 freeproc(struct proc *p)
 {
   struct kthread* kt;
+  for (kt = p->kthread; kt < &p->kthread[NKT]; kt++){ //Free all the kernel threads inside the thread table
+    acquire(&kt->lock);
+    freeKT(kt);
+    release(&kt->lock);
+  }
   if(p->base_trapframes)
     kfree((void*)p->base_trapframes);
   p->base_trapframes = 0;
@@ -200,11 +205,6 @@ freeproc(struct proc *p)
   p->killed = 0;
   p->xstate = 0;
   
-  for (kt = p->kthread; kt < &p->kthread[NKT]; kt++){ //Free all the kernel threads inside the thread table
-    acquire(&kt->lock);
-    freeKT(kt);
-    release(&kt->lock);
-  }
   p->state = UNUSED;
 }
 
@@ -414,6 +414,18 @@ exit(int status)
   if(p == initproc)
     panic("init exiting");
 
+  kt = &p->kthread[0];
+  // for (kt = p->kthread; kt < &p->kthread[NKT]; kt++){//added
+  //   acquire(&kt->lock);
+  //   exitThread(kt, status);
+  //   release(&kt->lock);
+  // }
+
+  acquire(&kt->lock);
+  kt->xstate = status; 
+  kt->kstate = K_ZOMBIE;
+  release(&kt->lock);
+  
   // Close all open files.
   for(int fd = 0; fd < NOFILE; fd++){
     if(p->ofile[fd]){
@@ -437,17 +449,11 @@ exit(int status)
   wakeup(p->parent);
   
   acquire(&p->lock);
-
-  for (kt = p->kthread; kt < &p->kthread[NKT]; kt++){//added
-    acquire(&kt->lock);
-    exitThread(kt, status);
-    release(&kt->lock);
-  }
   p->xstate = status;
   p->state = ZOMBIE;
 
-  release(&wait_lock); //how is this released before the proc's lock?
   release(&p->lock);
+  release(&wait_lock); //how is this released before the proc's lock?
   kt = &p->kthread[0];
   acquire(&kt->lock);
   // Jump into the scheduler, never to return.
@@ -464,7 +470,6 @@ wait(uint64 addr)
   struct proc *pp;
   int havekids, pid;
   struct proc *p = myproc();
-
   acquire(&wait_lock);
 
   for(;;){
@@ -522,10 +527,10 @@ scheduler(void)
   for(;;){
     // Avoid deadlock by ensuring that devices can interrupt.
     intr_on();
-
     for(p = proc; p < &proc[NPROC]; p++) {
       //acquire(&p->lock);
-      kt = &p->kthread[0];
+      if(p->state == USED){
+      kt = &p->kthread[0];      
       acquire(&kt->lock);
       if(kt->kstate == K_RUNNABLE) {
         // Switch to chosen process.  It is the process's job
@@ -541,6 +546,7 @@ scheduler(void)
       }
       release(&kt->lock);
       //release(&p->lock);
+      }
     }
   }
 }
@@ -643,8 +649,8 @@ sleep(void *chan, struct spinlock *lk)
 
   // Reacquire original lock.
   release(&kt->lock);
-  //release(&p->lock);
   acquire(lk);
+  //release(&p->lock);
 }
 
 // Wake up all processes sleeping on chan.
