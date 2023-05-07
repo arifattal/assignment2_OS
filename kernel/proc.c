@@ -361,9 +361,9 @@ fork(void)
 
   pid = np->pid;
 
-  np_kt->kstate = kt->kstate; 
-  np_kt->killed = kt->killed;
-  np_kt->xstate = kt->xstate;
+  //np_kt->kstate = kt->kstate; 
+  //np_kt->killed = kt->killed;
+  //np_kt->xstate = kt->xstate;
 
   release(&np_kt->lock); //we realese these to keep the order mentioned in page 11 in the pdf
   release(&np->lock);
@@ -528,7 +528,6 @@ scheduler(void)
       kt = &p->kthread[0];
       acquire(&kt->lock);
       if(kt->kstate == K_RUNNABLE) {
-        //printf("@@@@@@@@@@@@@@@@@@@@@@@@@@@: %d\n", p->pid);
         // Switch to chosen process.  It is the process's job
         // to release its lock and then reacquire it
         // before jumping back to us.

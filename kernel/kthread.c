@@ -102,8 +102,8 @@ void freeKT(struct kthread *kt){
   kt->killed = 0;
   kt->xstate = 0;
   kt->tid = 0;
-  //kt->parnetProc = 0;
   //these lines were copied from freeproc, we removed them since they caused errors
+  //kt->parnetProc = 0;
   // if(kt->trapframe){
   //   kfree((void*)kt->trapframe);
   // }
