@@ -62,6 +62,9 @@ sys_sleep(void)
       release(&tickslock);
       return -1;
     }
+    if(mykthread()->killed){ //is this correct?
+      kthread_exit(-1);
+    }
     sleep(&ticks, &tickslock);
   }
   release(&tickslock);
@@ -88,4 +91,38 @@ sys_uptime(void)
   xticks = ticks;
   release(&tickslock);
   return xticks;
+}
+
+uint64
+sys_kthread_create(void){
+  int x = -1;
+  uint64 start_func;
+  uint64 stack;
+  argaddr(0, &start_func);
+  argaddr(1, &stack);
+  x = kthread_create(start_func, stack);
+  return x;
+}
+
+uint64
+sys_kthread_id(void){
+  return kthread_id();
+}
+
+uint64
+sys_kthread_kill(void){
+
+  return 0;
+}
+
+uint64
+sys_kthread_exit(void){
+
+  return 0;
+}
+
+uint64
+sys_kthread_join(void){
+
+  return 0;
 }

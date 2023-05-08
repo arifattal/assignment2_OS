@@ -508,7 +508,9 @@ wait(uint64 addr)
       release(&wait_lock);
       return -1;
     }
-    
+    if(mykthread()->killed){ //is this needed?
+      kthread_exit(-1);
+    }
     // Wait for a child to exit.
     sleep(p, &wait_lock);  //DOC: wait-sleep
   }
@@ -663,14 +665,12 @@ wakeup(void *chan){
   struct kthread *kt;
   for(p = proc; p < &proc[NPROC]; p++) {
     if(p != myproc()){
-      //acquire(&p->lock);
       kt = &p->kthread[0];
       acquire(&kt->lock);
       if(kt->kstate == K_SLEEPING && kt->chan == chan) {
         kt->kstate = K_RUNNABLE;
       }
       release(&kt->lock);
-      //release(&p->lock);
     }
   }
   //printf("finished wakeup\n");

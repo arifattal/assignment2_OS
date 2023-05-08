@@ -120,6 +120,13 @@ struct trapframe*   get_kthread_trapframe(struct proc *p, struct kthread *kt);
 void                exitThread(struct kthread *kt, int status);
 void                killThread(struct kthread *kt);
 int                 kt_killed(struct kthread *kt);
+int                 kthread_create( void *(*start_func)(), void *stack, uint stack_size);
+int                 kthread_id(void);
+int                 kthread_kill(int);
+void                kthread_exit(int);
+int                 kthread_join(int, int *);
+struct kthread*     get_kt_from_id(int ktid)
+
 
 // TODO: delte this after you are done with task 2.2
 //void allocproc_help_function(struct proc *p);

@@ -139,9 +139,136 @@ kt_killed(struct kthread *kt)
   return k;
 }
 
-// TODO: delete this after you are done with task 2.2
-// void allocproc_help_function(struct proc *p) {
-//   p->kthread->trapframe = get_kthread_trapframe(p, p->kthread);
+struct kthread* get_kt_from_id(int ktid){
+    struct proc *p_loop;
+    struct kthread *kt_loop;
+    for(p_loop = proc; p_loop < &proc[NPROC]; p_loop++){
+    for (kt_loop = p_loop->kthread; kt_loop < &p_loop->kthread[NKT]; kt_loop++){
+      if(kt_loop->tid == ktid){
+        return kt_loop;
+      }
+    }
+  }
+  return 0;
+}
 
-//   p->context.sp = p->kthread->kstack + PGSIZE;
-// }
+/*
+Calling kthread_create(...) will create a new thread within the context of the calling process. 
+The newly created thread state will be runnable. 
+The caller of kthread_create(...) must allocate a stack for the new thread to use (using malloc). 
+The stack size should be 4000 bytes (as in the ULT). 
+It would be best practice to define a new macro for the size. 
+Define it in a file that is accessible from the user space.
+start_func is a pointer to the entry function, which the thread will start executing. 
+Upon success, the identifier of the newly created thread is returned. In case of an error -1 is returned.
+This function should set the user-space ‘epc’ register to point to start_func, 
+and the user-space ‘sp’ register to the top of the stack.
+Note: make sure that the function pointed to by start_func 
+calls kthread_exit(...) at the end, similarly to the requirement in ULT.
+*/
+int kthread_create( void *(*start_func)(), void *stack, uint stack_size ){
+  struct proc* p = myproc();
+  if(p == 0 || stack == 0 || stack_size == 0){
+    return -1;
+  }
+  struct kthread* kt = allocKthread(p);
+  if(kt == 0){
+    return -1;
+  }
+  kt->kstack = stack;
+  kt->context.ra = (uint64)start_func; //when the thread will start executing it will start at this function
+  kt->context.sp = (uint64)kt->kstack + stack_size; //set sp(stack pointer) to the top of the stack
+  kt->kstate = K_RUNNABLE;
+  release(&kt->lock);
+  return kt->tid;
+}
+
+int kthread_id(){
+  struct kthread *kt = mykthread();
+  if(kt == 0)
+    return -1;
+  return kt->tid;
+}
+/*
+This function sets the killed flag of the kthread with the given ktid in the same process. 
+If the kernel thread is sleeping, it also sets its state to runnable. 
+Upon success this function returns 0, and -1 if it fails 
+(e.g., when the ktid does not match any kthread’s ktid under this process). 
+Note: in order for this system call to have any effect, 
+the killed flag of the kthread needs to be checked in 
+certain places and kthread_exit(...) should be called accordingly.
+Hint: look where proc’s killed flag is checked in proc.c, trap.c and sysproc.c.
+*/
+int kthread_kill(int ktid){
+  struct proc *p = myproc();
+  struct kthread *kt;
+  int return_val = -1;
+  if(p == 0){
+    return -1;
+  }
+  for (kt = p->kthread; kt < &p->kthread[NKT]; kt++){
+    acquire(&kt->lock);
+    if(kt->tid == ktid){
+      return_val = 0;
+      kt->killed = 1;
+      if(kt->kstate == K_SLEEPING){
+        kt->kstate = K_RUNNABLE;
+      }
+      release(&kt->lock);
+      break;
+    }
+    else{
+      release(&kt->lock);
+    }
+  }
+  return return_val;
+}
+
+/*
+This function terminates the execution of the calling thread. 
+If called by a thread (even the main thread) while other threads 
+exist within the same process, it shouldn’t terminate the whole process. 
+The number given in status should be saved in the thread’s structure as its exit status.
+*/
+void kthread_exit(int status){
+  struct proc *p = myproc();
+  struct kthread *kt = mykthread();
+  if(p == 0 || kt == 0){
+    return -1;
+  }
+  wakeup(kt);
+  acquire(&kt->lock);
+  kt->kstate = K_ZOMBIE;
+  kt->xstate = status;
+  sched();
+  panic("zombie exit");
+}
+
+/*
+This function suspends the execution of the calling thread 
+until the target thread (indicated by the argument ktid) terminates. 
+When successful, the pointer given in status is filled with 
+the exit status (if it’s not null), and the function returns zero. 
+Otherwise, -1 should be returned to indicate an error.
+Note: calling this function with a ktid of an already 
+terminated (but not yet joined) kthread should succeed 
+and allow fetching the exit status of the kthread.
+*/
+int kthread_join(int ktid, int *status){
+  struct proc *p = myproc();
+  struct kthread *kt = mykthread();
+  struct kthread *target_kt = get_kt_from_id(ktid);
+  if(p == 0 || kt == 0 || target_kt == 0){
+    return -1;
+  }
+  //acquire(&kt->lock);
+  sleep(target_kt, &kt->lock); //send kt to sleep on target_kt
+  if(kt->kstate == K_ZOMBIE){
+      if(status != 0 && copyout(p->pagetable, status, (char *)&kt->xstate,
+                            sizeof(kt->xstate)) < 0) {
+      release(&pp->lock);
+      return -1;
+    }
+  }
+
+}
