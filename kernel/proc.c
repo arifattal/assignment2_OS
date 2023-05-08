@@ -85,7 +85,6 @@ struct proc*
 myproc(void)
 {
   struct proc *p = 0;
-  //printf("got to myproc()\n");
   push_off();
   struct cpu *c = mycpu();
   struct kthread *kt = c->kthread;
@@ -147,9 +146,11 @@ allocproc(void)
 found:
   p->pid = allocpid();
   p->state = USED;
+  acquire(&p->t_pid_lock); //possibly not needed
   p->tpidCounter = 1;
+  release(&p->t_pid_lock);
+
   // Allocate a trapframe page.
-  
   if((p->base_trapframes = (struct trapframe *)kalloc()) == 0){
     freeproc(p); 
     release(&p->lock);
@@ -204,7 +205,6 @@ freeproc(struct proc *p)
   p->name[0] = 0;
   p->killed = 0;
   p->xstate = 0;
-  
   p->state = UNUSED;
 }
 
@@ -360,6 +360,7 @@ fork(void)
   safestrcpy(np->name, p->name, sizeof(p->name));
 
   pid = np->pid;
+  np_kt->chan = kt->chan;
 
   //np_kt->kstate = kt->kstate; 
   //np_kt->killed = kt->killed;
@@ -414,18 +415,18 @@ exit(int status)
   if(p == initproc)
     panic("init exiting");
 
-  kt = &p->kthread[0];
+  //kt = &p->kthread[0];
   // for (kt = p->kthread; kt < &p->kthread[NKT]; kt++){//added
   //   acquire(&kt->lock);
   //   exitThread(kt, status);
   //   release(&kt->lock);
   // }
 
-  acquire(&kt->lock);
-  kt->xstate = status; 
-  kt->kstate = K_ZOMBIE;
-  release(&kt->lock);
-  
+  // acquire(&kt->lock);
+  // kt->xstate = status; 
+  // kt->kstate = K_ZOMBIE;
+  // release(&kt->lock);
+
   // Close all open files.
   for(int fd = 0; fd < NOFILE; fd++){
     if(p->ofile[fd]){
@@ -453,9 +454,12 @@ exit(int status)
   p->state = ZOMBIE;
 
   release(&p->lock);
-  release(&wait_lock); //how is this released before the proc's lock?
+  release(&wait_lock); 
   kt = &p->kthread[0];
+
   acquire(&kt->lock);
+  kt->xstate = status; 
+  kt->kstate = K_ZOMBIE;
   // Jump into the scheduler, never to return.
   sched();
   panic("zombie exit");
@@ -584,15 +588,12 @@ sched(void)
 void
 yield(void)
 {
-  //printf("got to yield\n");
   struct proc *p = myproc();
-  //acquire(&p->lock);
   struct kthread *kt = &p->kthread[0];
   acquire(&kt->lock);
   kt->kstate = K_RUNNABLE;
   sched();
   release(&kt->lock);
-  //release(&p->lock);
 }
 
 // A fork child's very first scheduling by scheduler()
