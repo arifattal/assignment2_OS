@@ -125,7 +125,7 @@ int                 kthread_id(void);
 int                 kthread_kill(int);
 void                kthread_exit(int);
 int                 kthread_join(int, int *);
-struct kthread*     get_kt_from_id(int ktid)
+struct kthread*     get_kt_from_id(int ktid);
 
 
 // TODO: delte this after you are done with task 2.2

@@ -121,7 +121,19 @@ exec(char *path, char **argv)
     if(*s == '/')
       last = s+1;
   safestrcpy(p->name, last, sizeof(p->name));
-    
+
+  //we added the two for loops
+  for (struct kthread *t = p->kthread; t < &p->kthread[NKT]; t++){ //kills all threads excluding kt
+    if(t != kt && t->kstate != K_ZOMBIE && t->kstate != K_UNUSED){
+      kthread_kill(t->tid);
+    }
+  }
+  for (struct kthread *t = p->kthread; t < &p->kthread[NKT]; t++){ //kt will call join on all threads to finish them off completly
+    if(t != kt && t->kstate != K_UNUSED){
+      kthread_join(t->tid, &kt->xstate);
+    }
+  }
+
   // Commit to the user image.
   oldpagetable = p->pagetable;
   p->pagetable = pagetable;

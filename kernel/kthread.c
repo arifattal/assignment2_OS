@@ -69,7 +69,7 @@ fetched by using the get_kthread_trapframe(...) function from kthread.c.
 */
 struct kthread* allocKthread(struct proc *p){
   int found = 0;
-  struct kthread* kt = &p->kthread[0];
+  struct kthread* kt;
   for (kt = p->kthread; kt < &p->kthread[NKT]; kt++){
     acquire(&kt->lock);
     if(kt->kstate == K_UNUSED){
@@ -120,7 +120,9 @@ void exitThread(struct kthread *kt, int status){ //we added this
 //see kill in proc.c to see why we did this
 void killThread(struct kthread *kt){
   kt->killed = 1; //might not need this
-  kt->kstate = K_RUNNABLE;
+  if(kt->kstate == K_SLEEPING){ //wake up the target process from sleep because the process may be blocked on a system call or waiting for an event to occur
+    kt->kstate = K_RUNNABLE;
+  }
 }
 
 struct trapframe *get_kthread_trapframe(struct proc *p, struct kthread *kt)
@@ -175,9 +177,8 @@ int kthread_create( void *(*start_func)(), void *stack, uint stack_size ){
   if(kt == 0){
     return -1;
   }
-  kt->kstack = stack;
   kt->context.ra = (uint64)start_func; //when the thread will start executing it will start at this function
-  kt->context.sp = (uint64)kt->kstack + stack_size; //set sp(stack pointer) to the top of the stack
+  kt->context.sp = (uint64)stack + stack_size; //set sp(stack pointer) to the top of the stack
   kt->kstate = K_RUNNABLE;
   release(&kt->lock);
   return kt->tid;
@@ -233,15 +234,14 @@ The number given in status should be saved in the thread’s structure as its ex
 void kthread_exit(int status){
   struct proc *p = myproc();
   struct kthread *kt = mykthread();
-  if(p == 0 || kt == 0){
-    return -1;
+  if(p != 0 && kt != 0){
+    wakeup(kt);
+    acquire(&kt->lock);
+    kt->kstate = K_ZOMBIE;
+    kt->xstate = status;
+    sched();
+    panic("zombie exit");
   }
-  wakeup(kt);
-  acquire(&kt->lock);
-  kt->kstate = K_ZOMBIE;
-  kt->xstate = status;
-  sched();
-  panic("zombie exit");
 }
 
 /*
@@ -261,14 +261,24 @@ int kthread_join(int ktid, int *status){
   if(p == 0 || kt == 0 || target_kt == 0){
     return -1;
   }
-  //acquire(&kt->lock);
-  sleep(target_kt, &kt->lock); //send kt to sleep on target_kt
-  if(kt->kstate == K_ZOMBIE){
-      if(status != 0 && copyout(p->pagetable, status, (char *)&kt->xstate,
-                            sizeof(kt->xstate)) < 0) {
-      release(&pp->lock);
-      return -1;
-    }
+  //possibly the target kt is already in zombie state, check this
+  //acquire(&target_kt->lock); //this is needed if we send target_kt->lock as a parameter to sleep, since the lock is released there
+  if(target_kt->kstate != K_ZOMBIE){//if target_kt is already in zombie state sending kt to sleep isn't needed
+    sleep(target_kt, &p->lock); //send kt to sleep on target_kt, 
   }
+  //we must release target_kt's resources
+  if(target_kt->kstate == K_ZOMBIE){
+      //target_kt's lock was reacquired through sleep
+      acquire(&target_kt->lock);
 
+      if(status != 0 && copyout(p->pagetable, (uint64)status, (char *)&target_kt->xstate,
+                            sizeof(target_kt->xstate)) < 0) {
+        release(&target_kt->lock);
+        return -1;
+    }
+    freeKT(target_kt);
+    release(&target_kt->lock);
+    return 0;
+  }
+  return -1;
 }
