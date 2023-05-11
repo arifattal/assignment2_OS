@@ -247,24 +247,24 @@ exist within the same process, it shouldn’t terminate the whole process.
 The number given in status should be saved in the thread’s structure as its exit status.
 */
 void kthread_exit(int status){
-  //struct proc *p = myproc();
+  struct proc *p = myproc();
   struct kthread *kt = mykthread();
-  //int x = 0;
-  // for (struct kthread *t = p->kthread; t < &p->kthread[NKT]; t++){
-  //   acquire(&t->lock);
-  //   if(kt->kstate == K_UNUSED){
-  //     x++;
-  //   }
-  //   release(&t->lock);
-  // }
+  int x = 0;
+  for (struct kthread *t = p->kthread; t < &p->kthread[NKT]; t++){
+    acquire(&t->lock);
+    if(kt->kstate == K_UNUSED){
+      x++;
+    }
+    release(&t->lock);
+  }
   wakeup(kt);
   acquire(&kt->lock);
   kt->kstate = K_ZOMBIE;
   kt->xstate = status;
-  // if(x == NKT - 1){
-  //   release(&kt->lock);
-  //   exit(status);
-  // }
+  if(x == NKT - 1){
+    release(&kt->lock);
+    exit(status);
+  }
   sched();
   panic("zombie exit");
 
@@ -284,7 +284,7 @@ int kthread_join(int ktid, int *status){
   struct proc *p = myproc();
   struct kthread *kt = mykthread();
   struct kthread *target_kt = get_kt_from_id(ktid);
-  //status = 0;
+  status = 0;
   if(p == 0 || kt == 0 || target_kt == 0){
     return -1;
   }
