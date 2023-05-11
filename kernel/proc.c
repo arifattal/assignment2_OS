@@ -346,9 +346,7 @@ fork(void)
       break;
     }
   }
-  if(np_kt != &np->kthread[0]){
-    printf("hello\n");
-  }
+  
   // Copy user memory from parent to child.
   if(uvmcopy(p->pagetable, np->pagetable, p->sz) < 0){
     release(&np_kt->lock); //we're not sure about this. look at freeproc to see why we did this

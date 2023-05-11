@@ -1,5 +1,5 @@
 #define NPROC        64  // maximum number of processes
-#define NKT          4  // maximum number of kernel threads. this will be changed in later tasks
+#define NKT          10  // maximum number of kernel threads. this will be changed in later tasks
 #define NCPU          8  // maximum number of CPUs
 #define NOFILE       16  // open files per process
 #define NFILE       100  // open files per system

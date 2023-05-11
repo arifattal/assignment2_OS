@@ -787,34 +787,33 @@ pipe1(char *s)
 
 
 // test if child is killed (status = -1)
-// void
-// killstatus(char *s)
-// {
-//   int xst;
+void
+killstatus(char *s)
+{
+  int xst;
   
-//   for(int i = 0; i < 100; i++){
-//     printf("%d\n", i);
-//     int pid1 = fork();
-//     if(pid1 < 0){
-//       printf("%s: fork failed\n", s);
-//       exit(1);
-//     }
-//     if(pid1 == 0){
-//       while(1) {
-//         getpid();
-//       }
-//       exit(0);
-//     }
-//     sleep(1);
-//     kill(pid1);
-//     wait(&xst);
-//     if(xst != -1) {
-//        printf("%s: status should be -1\n", s);
-//        exit(1);
-//     }
-//   }
-//   exit(0);
-// }
+  for(int i = 0; i < 100; i++){
+    int pid1 = fork();
+    if(pid1 < 0){
+      printf("%s: fork failed\n", s);
+      exit(1);
+    }
+    if(pid1 == 0){
+      while(1) {
+        getpid();
+      }
+      exit(0);
+    }
+    sleep(1);
+    kill(pid1);
+    wait(&xst);
+    if(xst != -1) {
+       printf("%s: status should be -1\n", s);
+       exit(1);
+    }
+  }
+  exit(0);
+}
 
 // meant to be run w/ at most two CPUs
 void
@@ -908,7 +907,6 @@ reparent(char *s)
 {
   int master_pid = getpid();
   for(int i = 0; i < 200; i++){ //this was 200 put this back
-    printf("%d\n", i);
     int pid = fork();
     if(pid < 0){
       printf("%s: fork failed\n", s);
@@ -936,7 +934,6 @@ void
 twochildren(char *s)
 {
   for(int i = 0; i < 1000; i++){
-    printf("%d\n", i);
     int pid1 = fork();
     if(pid1 < 0){
       printf("%s: fork failed\n", s);
@@ -2597,7 +2594,7 @@ struct test {
   {dirtest, "dirtest"},
   {exectest, "exectest"},
   {pipe1, "pipe1"},
-  //{killstatus, "killstatus"},
+  {killstatus, "killstatus"},
   {preempt, "preempt"},
   {exitwait, "exitwait"},
   {reparent, "reparent" },

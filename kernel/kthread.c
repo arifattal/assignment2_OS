@@ -70,6 +70,8 @@ fetched by using the get_kthread_trapframe(...) function from kthread.c.
 struct kthread* allocKthread(struct proc *p){
   int found = 0;
   struct kthread* kt;
+  //this is used in case that a the thread wasn't cleaned properly.
+  // in this case the first thread is a zombie and the rest are unused, this isn't proper behavior 
   struct kthread* zombie_kt = 0;
   int num_unused = 0;
   int num_zombie = 0;
@@ -85,8 +87,7 @@ struct kthread* allocKthread(struct proc *p){
     release(&t->lock);
   }
 
-  if(num_unused == 3 && num_zombie == 1){
-    printf("problem\n");
+  if(num_unused == (NKT-1) && num_zombie == 1){ //if 1 kt is zombie and the rest are unused free the zombie
     freeKT(zombie_kt);
   }
 
@@ -249,11 +250,11 @@ The number given in status should be saved in the thread’s structure as its ex
 void kthread_exit(int status){
   struct proc *p = myproc();
   struct kthread *kt = mykthread();
-  int x = 0;
+  int num_unused = 0; //keeps track of the number of unused kt's
   for (struct kthread *t = p->kthread; t < &p->kthread[NKT]; t++){
     acquire(&t->lock);
     if(kt->kstate == K_UNUSED){
-      x++;
+      num_unused++;
     }
     release(&t->lock);
   }
@@ -261,7 +262,7 @@ void kthread_exit(int status){
   acquire(&kt->lock);
   kt->kstate = K_ZOMBIE;
   kt->xstate = status;
-  if(x == NKT - 1){
+  if(num_unused == NKT - 1){ //if all except 1 are unused call exit as requested
     release(&kt->lock);
     exit(status);
   }
@@ -304,7 +305,7 @@ int kthread_join(int ktid, int *status){
         release(&target_kt->lock);
         return -1;
     }
-    freeKT(target_kt);
+    freeKT(target_kt); //we must free the target kt
     release(&target_kt->lock);
     return 0;
   }
