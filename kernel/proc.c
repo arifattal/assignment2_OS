@@ -18,6 +18,9 @@ struct spinlock pid_lock;
 extern void forkret(void);
 static void freeproc(struct proc *p);
 
+
+
+
 extern char trampoline[]; // trampoline.S
 
 // helps ensure that wakeups of wait()ing
@@ -167,6 +170,7 @@ found:
 
   //alloc kthread for this proc, if successful after returning from this func both the proc and it's kthread's lock are acquired
   if((kt = allocKthread(p)) == 0){ //added
+    printf("look for this\n");
     release(&kt->lock);
     freeproc(p);
     release(&p->lock);
@@ -328,23 +332,22 @@ fork(void)
   //printf("got to fork\n");
   int i, pid;
   struct proc *np;
+  struct kthread *np_kt = 0;
   struct proc *p = myproc();
   struct kthread *kt = mykthread();
   // Allocate process.
   if((np = allocproc()) == 0){
     return -1;
   }
-  struct kthread *np_kt = &np->kthread[0];
-  if(np_kt->kstate == K_ZOMBIE){
-    for (struct kthread *t = p->kthread; t < &p->kthread[NKT]; t++){
-      if(t->kstate == K_ZOMBIE){
-        printf("tid number = %d\n", t->tid);
-      }
-      if(t->kstate == K_USED){
-        printf("tid number = %d\n", t->tid);
-      }
+  //struct kthread *np_kt = &np->kthread[0];
+  for (struct kthread *t = np->kthread; t < &np->kthread[NKT]; t++){
+    if(t->kstate == K_USED){
+      np_kt = t;
+      break;
     }
-    printf("zombie\n");
+  }
+  if(np_kt != &np->kthread[0]){
+    printf("hello\n");
   }
   // Copy user memory from parent to child.
   if(uvmcopy(p->pagetable, np->pagetable, p->sz) < 0){
@@ -354,9 +357,7 @@ fork(void)
     return -1;
   }
   np->sz = p->sz;
-  if(np_kt->kstate == K_ZOMBIE){
-    printf("zombie\n");
-  }
+
   // copy saved user registers.
   *(np_kt->trapframe) = *(kt->trapframe);
 
@@ -368,24 +369,11 @@ fork(void)
     if(p->ofile[i])
       np->ofile[i] = filedup(p->ofile[i]);
   np->cwd = idup(p->cwd);
-  if(np_kt->kstate == K_ZOMBIE){
-    printf("zombie\n");
-  }
+
   safestrcpy(np->name, p->name, sizeof(p->name));
-  if(np_kt->kstate == K_ZOMBIE){
-    printf("zombie\n");
-  }
   pid = np->pid;
   np_kt->chan = kt->chan;
-  if(np_kt->kstate == K_ZOMBIE){
-    printf("zombie\n");
-  }
-  //np_kt->kstate = kt->kstate; 
-  //np_kt->killed = kt->killed;
-  //np_kt->xstate = kt->xstate;
-  if(np_kt->kstate == K_ZOMBIE){
-    printf("zombie\n");
-  }
+
   release(&np_kt->lock); //we realese these to keep the order mentioned in page 11 in the pdf
   release(&np->lock);
 
@@ -393,11 +381,9 @@ fork(void)
   np->parent = p;
   release(&wait_lock);
 
-  //acquire(&np->lock);
   acquire(&np_kt->lock);
   np_kt->kstate = K_RUNNABLE;
   release(&np_kt->lock); 
-  //release(&np->lock);
 
   return pid;
 }
@@ -435,11 +421,16 @@ exit(int status)
   if(p == initproc)
     panic("init exiting");
 
+  //this will set the killed flag for t and set the state to runnable
+  //we might think that calling kthread_exit would make more sense, but calling exit
+  //is only preformed by the thread itself. kthread_kill sets t's kill flag to 1 and state to runnable.
+  //next time t get run time it will set it's state to zombie
   for (struct kthread *t = p->kthread; t < &p->kthread[NKT]; t++){ //kills all threads excluding kt
     if(t != kt && t->kstate != K_ZOMBIE && t->kstate != K_UNUSED){
-      kthread_kill(t->tid);
+      kthread_kill(t->tid); 
     }
   }
+
   for (struct kthread *t = p->kthread; t < &p->kthread[NKT]; t++){ //kt will call join on all threads to finish them off completly
     if(t != kt && t->kstate != K_UNUSED){
       kthread_join(t->tid, &kt->xstate);
@@ -477,6 +468,7 @@ exit(int status)
   acquire(&kt->lock);
   kt->xstate = status; 
   kt->kstate = K_ZOMBIE;
+  //freeKT(kt);
   // Jump into the scheduler, never to return.
   sched();
   panic("zombie exit");
@@ -526,7 +518,10 @@ wait(uint64 addr)
       return -1;
     }
     // if(mykthread()->killed){ //is this needed?
+    //   printf("entered\n");
+    //   release(&wait_lock);
     //   kthread_exit(-1);
+    //   return -1;
     // }
     // Wait for a child to exit.
     sleep(p, &wait_lock);  //DOC: wait-sleep
@@ -675,18 +670,16 @@ wakeup(void *chan){
   //printf("got to wakeup\n");
   struct proc *p;
   struct kthread *kt;
-  struct kthread *running_kt = mykthread();
+  //struct kthread *running_kt = mykthread();
   for(p = proc; p < &proc[NPROC]; p++) {
-    //if(p != myproc()){
     for (kt = p->kthread; kt < &p->kthread[NKT]; kt++){
-      if(kt != running_kt){
+      //if(kt != running_kt){
         acquire(&kt->lock);
         if(kt->kstate == K_SLEEPING && kt->chan == chan) {
           kt->kstate = K_RUNNABLE;
         }
         release(&kt->lock);
       }
-    }
     //}
   }
 }

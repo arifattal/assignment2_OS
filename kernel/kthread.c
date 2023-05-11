@@ -70,6 +70,26 @@ fetched by using the get_kthread_trapframe(...) function from kthread.c.
 struct kthread* allocKthread(struct proc *p){
   int found = 0;
   struct kthread* kt;
+  struct kthread* zombie_kt = 0;
+  int num_unused = 0;
+  int num_zombie = 0;
+  for (struct kthread *t = p->kthread; t < &p->kthread[NKT]; t++){
+    acquire(&t->lock);
+    if(t->kstate == K_UNUSED){
+      num_unused++;
+    }
+    if(t->kstate == K_ZOMBIE){
+      num_zombie++;
+      zombie_kt = t;
+    }
+    release(&t->lock);
+  }
+
+  if(num_unused == 3 && num_zombie == 1){
+    printf("problem\n");
+    freeKT(zombie_kt);
+  }
+
   for (kt = p->kthread; kt < &p->kthread[NKT]; kt++){
     acquire(&kt->lock);
     if(kt->kstate == K_UNUSED){
@@ -86,6 +106,7 @@ struct kthread* allocKthread(struct proc *p){
       release(&kt->lock);
     }
   }
+
   if(found == 0){ //an unused kthread hasn't been found
     return 0;
   }
@@ -102,12 +123,6 @@ void freeKT(struct kthread *kt){
   kt->xstate = 0;
   kt->tid = 0;
   kt->kstate = K_UNUSED;
-  //these lines were copied from freeproc, we removed them since they caused errors
-  //kt->parnetProc = 0;
-  // if(kt->trapframe){
-  //   kfree((void*)kt->trapframe);
-  // }
-  //kt->trapframe = 0;
 }
 
 //an auxiliary function called by exit
@@ -119,7 +134,7 @@ void exitThread(struct kthread *kt, int status){ //we added this
 //an auxiliary function called by kill
 //see kill in proc.c to see why we did this
 void killThread(struct kthread *kt){
-  kt->killed = 1; //might not need this
+  //kt->killed = 1; //might not need this
   if(kt->kstate == K_SLEEPING){ //wake up the target process from sleep because the process may be blocked on a system call or waiting for an event to occur
     kt->kstate = K_RUNNABLE;
   }
@@ -232,16 +247,27 @@ exist within the same process, it shouldn’t terminate the whole process.
 The number given in status should be saved in the thread’s structure as its exit status.
 */
 void kthread_exit(int status){
-  struct proc *p = myproc();
+  //struct proc *p = myproc();
   struct kthread *kt = mykthread();
-  if(p != 0 && kt != 0){
-    wakeup(kt);
-    acquire(&kt->lock);
-    kt->kstate = K_ZOMBIE;
-    kt->xstate = status;
-    sched();
-    panic("zombie exit");
-  }
+  //int x = 0;
+  // for (struct kthread *t = p->kthread; t < &p->kthread[NKT]; t++){
+  //   acquire(&t->lock);
+  //   if(kt->kstate == K_UNUSED){
+  //     x++;
+  //   }
+  //   release(&t->lock);
+  // }
+  wakeup(kt);
+  acquire(&kt->lock);
+  kt->kstate = K_ZOMBIE;
+  kt->xstate = status;
+  // if(x == NKT - 1){
+  //   release(&kt->lock);
+  //   exit(status);
+  // }
+  sched();
+  panic("zombie exit");
+
 }
 
 /*
@@ -258,18 +284,20 @@ int kthread_join(int ktid, int *status){
   struct proc *p = myproc();
   struct kthread *kt = mykthread();
   struct kthread *target_kt = get_kt_from_id(ktid);
+  //status = 0;
   if(p == 0 || kt == 0 || target_kt == 0){
     return -1;
   }
   //possibly the target kt is already in zombie state, check this
   //acquire(&target_kt->lock); //this is needed if we send target_kt->lock as a parameter to sleep, since the lock is released there
   if(target_kt->kstate != K_ZOMBIE){//if target_kt is already in zombie state sending kt to sleep isn't needed
+    acquire(&p->lock);
     sleep(target_kt, &p->lock); //send kt to sleep on target_kt, 
   }
   //we must release target_kt's resources
   if(target_kt->kstate == K_ZOMBIE){
       //target_kt's lock was reacquired through sleep
-      acquire(&target_kt->lock);
+      acquire(&p->lock);
 
       if(status != 0 && copyout(p->pagetable, (uint64)status, (char *)&target_kt->xstate,
                             sizeof(target_kt->xstate)) < 0) {

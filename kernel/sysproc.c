@@ -62,9 +62,11 @@ sys_sleep(void)
       release(&tickslock);
       return -1;
     }
-    if(mykthread()->killed){ //is this correct?
-      kthread_exit(-1);
-    }
+    // if(mykthread()->killed){ //is this correct?
+    //   release(&tickslock);
+    //   kthread_exit(-1);
+    //   return -1;
+    // }
     sleep(&ticks, &tickslock);
   }
   release(&tickslock);

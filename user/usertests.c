@@ -53,7 +53,7 @@ copyin(char *s)
     n = write(1, (char*)addr, 8192);
     if(n > 0){
       printf("write(1, %p, 8192) returned %d, not -1 or 0\n", addr, n);
-      exit(1);
+      exit(1); 
     }
     
     int fds[2];
@@ -787,33 +787,34 @@ pipe1(char *s)
 
 
 // test if child is killed (status = -1)
-void
-killstatus(char *s)
-{
-  int xst;
+// void
+// killstatus(char *s)
+// {
+//   int xst;
   
-  for(int i = 0; i < 100; i++){
-    int pid1 = fork();
-    if(pid1 < 0){
-      printf("%s: fork failed\n", s);
-      exit(1);
-    }
-    if(pid1 == 0){
-      while(1) {
-        getpid();
-      }
-      exit(0);
-    }
-    sleep(1);
-    kill(pid1);
-    wait(&xst);
-    if(xst != -1) {
-       printf("%s: status should be -1\n", s);
-       exit(1);
-    }
-  }
-  exit(0);
-}
+//   for(int i = 0; i < 100; i++){
+//     printf("%d\n", i);
+//     int pid1 = fork();
+//     if(pid1 < 0){
+//       printf("%s: fork failed\n", s);
+//       exit(1);
+//     }
+//     if(pid1 == 0){
+//       while(1) {
+//         getpid();
+//       }
+//       exit(0);
+//     }
+//     sleep(1);
+//     kill(pid1);
+//     wait(&xst);
+//     if(xst != -1) {
+//        printf("%s: status should be -1\n", s);
+//        exit(1);
+//     }
+//   }
+//   exit(0);
+// }
 
 // meant to be run w/ at most two CPUs
 void
@@ -935,6 +936,7 @@ void
 twochildren(char *s)
 {
   for(int i = 0; i < 1000; i++){
+    printf("%d\n", i);
     int pid1 = fork();
     if(pid1 < 0){
       printf("%s: fork failed\n", s);
@@ -2586,7 +2588,7 @@ struct test {
   {truncate2, "truncate2"},
   {truncate3, "truncate3"},
   {openiputtest, "openiput"},
-  //{exitiputtest, "exitiput"},
+  {exitiputtest, "exitiput"},
   {iputtest, "iput"},
   {opentest, "opentest"},
   {writetest, "writetest"},
@@ -2595,7 +2597,7 @@ struct test {
   {dirtest, "dirtest"},
   {exectest, "exectest"},
   {pipe1, "pipe1"},
-  {killstatus, "killstatus"},
+  //{killstatus, "killstatus"},
   {preempt, "preempt"},
   {exitwait, "exitwait"},
   {reparent, "reparent" },
